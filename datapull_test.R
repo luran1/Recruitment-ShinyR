@@ -17,6 +17,7 @@ library(REDCapR)
 library(lubridate)
 library(formattable)
 library(broom)
+library(DT)
 
 
 #------------------------------------------------------------------------
@@ -88,8 +89,15 @@ ds_some_rows_v1=ds_some_rows_v1 %>%
     mutate(previous_kids = recode(analysis_kids_previous, "1"="yes","0"="no"))%>%
     mutate(income = recode(analysis_income, "1"="$0-$15,000","2"="$15,001-$19,000","3"="$19,001-$37,000","4"="$37,001-$44,000","5"="$44,001-$52,000","6"="$52,001-$56,000","7"="$56,001-$67,000","8"="$67,001-$79,000","9"="$79,001 or more"))%>%
     mutate(phone_pass_fail = recode(int_phone_pass_fail, "1"="pass","0"="fail"))%>%
-    mutate(consent_complete = recode(int_consent_complete, "1"="Consented","0"="not Consented","NA"="Did not respond"))
+    mutate(consent_complete = recode(int_consent_complete, "1"="Consented","0"="not Consented"))
 
+
+#------------------------------------------------------------------------
+Age <- ds_some_rows_v1%>%
+    filter(!is.na(analysis_mat_age))
+
+BMI <- ds_some_rows_v1%>%
+    filter(!is.na(analysis_bmi))
 
 #------------------------------------------------------------------------
 
@@ -110,13 +118,18 @@ ui <- fluidPage(
                 sliderInput("quarter","Quarter",value = c(1,2),min=1,max=4),
                 sliderInput("year","Years",value = c(2017,2018),min=2017,max=2019),
                 checkboxGroupInput("encounter","Encounter Type",choices = c("Facebook","Flyer","Other"),selected ="Facebook"),
-        ),
+                sliderInput("BMI","BMI range",value = c(25,35),min=min(BMI$analysis_bmi),max=max(BMI$analysis_bmi)),
+                sliderInput("Age","Age range",value = c(30,40),min=min(Age$analysis_mat_age),max=max(Age$analysis_mat_age))
+                ),
+            
 
         # Show a plot of the generated distribution
         mainPanel(
             tabsetPanel(
                 tabPanel("Recruitment By Time",plotOutput("distPlot")),
-                tabPanel("Encounter Recruitment",plotOutput("encounterRecruitment"))
+                tabPanel("Encounter Recruitment",plotOutput("encounterRecruitment")),
+                tabPanel("BMI by Recruitment",plotOutput("BMIPlot"),tableOutput("BMITable")),
+                tabPanel("Age by recruitment",plotOutput("AgePlot"),tableOutput("AgeTable"))
             )
         )
     )
@@ -153,7 +166,7 @@ server <- function(input, output) {
                 TRUE~"5"))%>%
             group_by(learn_about_study,y,Q)%>%
             #does not work properly due to slider providing min and max values rather than all values within range
-            filter(y %in% input$year && Q %in% input$quarter)%>%
+            filter(y %in% (input$year[1]:input$year[2]) & Q %in% (input$quarter[1]:input$quarter[2]))%>%
             summarize(count=n())%>%
             unite("YQ",c("y",Q),sep ="-")
         
@@ -173,8 +186,6 @@ server <- function(input, output) {
                  y="Count",
                  fill="How did you learn about the study") +
             theme(axis.text.x = element_text(angle=70, vjust =.6))
-        
-        
     })
     
     output$encounterRecruitment <- renderPlot({
@@ -218,6 +229,83 @@ server <- function(input, output) {
                  fill="How did you learn about the study") +
             theme(axis.text.x = element_text(angle=70, vjust =.6))
     })
+    
+    output$BMIPlot <- renderPlot({
+        BMI <- ds_some_rows_v1%>%
+            select(record_id,analysis_bmi,learn_about_study)%>%
+            filter(!is.na(analysis_bmi))%>%
+            filter(!is.na(learn_about_study))
+        
+        
+        
+        #create a marginal Histogram / Boxplot for maternal ages by encounter type:
+        BMI$learn_about_study <- as.factor(BMI$learn_about_study)
+        
+        library(ggplot2)
+        theme_set(theme_classic())
+        
+        # Plot
+        means <- aggregate(analysis_bmi ~  learn_about_study, BMI, mean)
+        
+        
+        g <- ggplot(BMI, aes(learn_about_study, analysis_bmi))
+        g + geom_boxplot(varwidth=T, fill="plum") + 
+            labs(title="BMI of participants", 
+                 subtitle="Divided into how they heard of the study",
+                 caption="Source: BEACH Interview",
+                 x="How did you hear of our study",
+                 y="BMI")+
+            geom_text(data = means, aes(label = analysis_bmi, y = analysis_bmi + 0.08))
+    })
+    
+    output$BMITable <- renderTable({
+        BMI <- ds_some_rows_v1%>%
+            select(analysis_bmi,record_id,learn_about_study)%>%
+            filter(between(analysis_bmi,input$BMI[1],input$BMI[2]))%>%
+            group_by(learn_about_study)%>%
+            summarise(count=n())%>%
+            rename("encounter method"=learn_about_study,"Total"=count)
+        formattable(BMI,align=c("l","r"))
+        
+    })
+    
+    output$AgePlot <- renderPlot({
+        Mat_age <- ds_some_rows_v1%>%
+            select(record_id,analysis_mat_age,learn_about_study)%>%
+            filter(!is.na(analysis_mat_age))%>%
+            filter(!is.na(learn_about_study))
+        
+        
+        #create a marginal Histogram / Boxplot for maternal ages by encounter type:
+        Mat_age$learn_about_study <- as.factor(Mat_age$learn_about_study)
+        
+        library(ggplot2)
+        theme_set(theme_classic())
+        
+        # Plot
+        means <- aggregate(analysis_mat_age ~  learn_about_study, Mat_age, mean)
+        
+        g <- ggplot(Mat_age, aes(learn_about_study, analysis_mat_age))
+        g + geom_boxplot(varwidth=T, fill="plum") + 
+            labs(title="Age of Participants", 
+                 subtitle="Divided into how they heard of the study",
+                 caption="Source: BEACH Interview",
+                 x="How did you hear of our study",
+                 y="Age(years)")+
+            geom_text(data = means, aes(label = analysis_mat_age, y = analysis_mat_age + 6))
+    })
+    
+    #change to DT table rather than formatabe 
+    output$AgeTable <- renderTable({
+        Mat_age <- ds_some_rows_v1%>%
+            select(record_id,analysis_mat_age,learn_about_study)%>%
+            filter(between(analysis_mat_age,input$Age[1],input$Age[2]))%>%
+            filter(!is.na(analysis_mat_age))%>%
+            filter(!is.na(learn_about_study))
+        
+        formattable(Mat_age,asign=c("l","c","r"))
+    })
+    
     
 }
 
