@@ -1,0 +1,44 @@
+---
+title: "report template"
+author: "Luran Manfio"
+date: "7/2/2020"
+output:
+  html_document:
+    highlight: tango
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+---
+
+```{r}
+# the first 10 lines of code are ised by R markdown to formate the report. the output potion of (lines 6-10) determine the formate of the report. 
+
+# below are the packages that we will be using within this lab. if you do not have these packages installed then you will need to do so. this can be done by entering the function install.packages("name_of_package") and then running it. this will download the package and then allow you to run the code below without errors.
+library(lubridate)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+```{r}
+
+# the following code will set the correct directory and pull the sample data that you are going to make a report around. 
+
+#read.scv() is a fucntion to read in excel documents into R. the parameter for the function is the filepath for the the data. you will need to put in the file path that is unique to your computer below. 
+
+exchange<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\datasets_535863_984605_Foreign_Exchange_Rates.csv")
+head(exchange)
+
+```
+
+```{r}
+
+placement<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\placement.csv")
+head(placement)
+```
+
+```{r}
+
+netflix<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\netflix_titles.csv")
+head(netflix)
+```
