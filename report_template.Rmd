@@ -38,6 +38,12 @@ head(placement)
 ```
 
 ```{r}
+
+netflix<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\netflix_titles.csv")
+head(netflix)
+```
+
+```{r}
 #we'll first determine if there is a coorilation between gender and rank. the dataset has rankings from the 10th and 12th grade. 
 
 #below we pull the variables we want, gender and rank from both grades, using the select() function of dplyr.
