@@ -18,17 +18,64 @@ library(lubridate)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+```
 
+```{r}
 
 # the following code will set the correct directory and pull the sample data that you are going to make a report around. 
 
 #read.scv() is a fucntion to read in excel documents into R. the parameter for the function is the filepath for the the data. you will need to put in the file path that is unique to your computer below. 
 
 exchange<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\datasets_535863_984605_Foreign_Exchange_Rates.csv")
-
 head(exchange)
+
 ```
 
+```{r}
+
+placement<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\placement.csv")
+head(placement)
+```
+
+```{r}
+#we'll first determine if there is a coorilation between gender and rank. the dataset has rankings from the 10th and 12th grade. 
+
+#below we pull the variables we want, gender and rank from both grades, using the select() function of dplyr.
+    #next we rename the ranks more appropriatly. 
+    #lastly we drop na values.
+genderVSrank <- placement%>%
+  select(gender,ssc_p,hsc_p)%>%
+  rename(rank10=ssc_p)%>%
+  rename(rank12=hsc_p)%>%
+  drop_na()
+
+
+#lets check if any values were dropped by comparing if they have the same number of rows. 
+
+nrow(placement)
+nrow(genderVSrank)
+
+#now lets compare rank and gender. we can first display the ranks of each gender individually. to properly represent the distribution well break the ranks into groups of 5(40-90th).
+bins=seq(from = 40, to = 90, by = 5)
+female_rank10 <- genderVSrank%>%
+  filter(gender=="F")%>%
+  group_by(rank10)%>%
+  summarise(count=n())
+
+male_rank10 <- genderVSrank%>%
+  filter(gender=="M")%>%
+  group_by(rank10)%>%
+  summarise(count=n())
+  
+
+
+ggplot(female_rank10, aes(x=rank10)) +
+    geom_histogram(aes(y=stat(count)))
+
+ggplot(male_rank10, aes(x=rank10)) +
+    geom_histogram(aes(y=stat(count)))
+
+```
 
 ```{r}
 # now well begin to work with the data. first we should view the information on a larger scale than days. lets review the data by week,month, and year.
