@@ -1,0 +1,145 @@
+---
+title: "comparison example"
+author: "Luran Manfio"
+date: "7/22/2020"
+output: html_document
+---
+
+```{r loads, include=FALSE}
+library(shiny)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+```
+
+```{r "data load",echo=FALSE,include=FALSE}
+#load in the netfilx data 
+netflix<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\netflix_titles.csv")
+
+```
+
+```{r tidy,echo=FALSE, include=FALSE}
+#tidy data 
+#adjust the dates into type date 
+netflix$date_added <- as.Date(netflix$date_added, format = "%B %d, %Y")
+
+
+```
+## we are going to review 3 major points of the Netflix data. 
+
+Data: https://www.kaggle.com/shivamb/netflix-shows 
+
+we are going to review the top 10 genres, directors, actors, and countries. these will be displayed in the form of figures below.
+
+## Genre
+
+we can see that from the 10 genres, the most populated is international. this is consistent with both movie and TV.
+```{r genre, echo=FALSE, warning=FALSE}
+ #removes the white space btw. the listed genres.
+   netflix$listed_in=trimws(netflix$listed_in,which='left')
+        
+ #seperate the genres and summarize their counts. 
+ top_genres=netflix %>% 
+   #seperate the genres in nested formate.
+     mutate(genre=strsplit(listed_in,',')) %>%   
+   #unnest the new column(genre), meaning that new duplciate rows are created.
+     unnest(genre) %>%       
+   #group by type and genre.
+     group_by(type,genre) %>%        
+   #summarize the count of genre and types.
+     summarise(count=n()) %>%        
+   #count only unique operations since some objects might.
+     unique() %>%     
+   #arrange makes a change in how the data is displayed(now desending order).
+     arrange(desc(count)) %>%
+   #limits the number of variables displayed to set value.
+     top_n(10,count)
+    
+ #create the graph using ggplot2
+top_genres %>% ggplot(aes(x= fct_reorder(genre,count,.desc = T),y=count,fill=type))+
+            geom_col()+
+            scale_y_continuous(limits =c(0,1850),breaks =seq(0,1850,400))+
+            labs(title='Top Genres - Movies Vs Tv Shows',x='Genres') +
+            theme(axis.text.x = element_text(angle = 90))
+```
+
+
+## Actors and Directors
+
+here we can see that the top actors and directors in terms of how many films or shows they've been in/directed. 
+```{r actors and Directors, echo=FALSE, warning=FALSE}
+
+#organizing a new dataframe for actors and directors 
+Actors=netflix %>%
+    select(director,cast)%>%
+#turning the cast and director columns into a key value system
+    gather(key="cast_dir",value="person",director,cast)%>%      
+#remove the missing values that are empty.
+    filter(person!="")%>%       
+#seperate the list of names into their own row.
+    separate_rows(person, sep=",")      
+
+Actors$actor=trimws(Actors$person, which = "left")      
+#remove the white space from the right side of the names, a result of the seperate_rows.
+
+Actor_freq=Actors %>%
+#defining the grouping variables that will be summarized 
+    group_by(cast_dir,person)%>%        
+#summarize the number of unique pairs 
+    summarise(count=n())%>%         
+#arrange the summarized table in decending order(highest to lowest)
+    arrange(desc(count))%>%         
+#limit the number of observations to 10
+    top_n(10,count)         
+
+#creating the figure
+Actor_freq %>% ggplot(aes(x=fct_reorder(person,count,.desc = T),y=count,fill=cast_dir))+
+            geom_col()+
+            facet_wrap(~cast_dir,scales = 'free_x')+
+            scale_x_discrete()+
+            labs(title='Top Actors & Directors',x='Actors & Directors')+
+            theme(axis.text.x = element_text(angle = 90))
+
+```
+
+## Country
+
+Here we can see what countries have the most films/shows are produced. 
+
+```{r country, echo=FALSE, warning=FALSE}
+
+# creating a new dataframe including type and country.
+uniqueEntries <- netflix %>%
+    select(type,country)%>%
+  #seperate the list of countries per variable.
+    separate_rows(country, sep = ",")
+
+#remove the white space on the left of the new country variable. 
+uniqueEntries$country <- trimws(uniqueEntries$country, which = "left")
+
+#work the data before creating the figure.
+uniqueEntries <- uniqueEntries%>%
+  #remove empty/missing data.
+    filter(country!="")%>%
+    group_by(type, country) %>%
+    summarise(count=n())%>%
+    arrange(desc(count))%>%
+    top_n(10,count)
+
+#create the figure
+uniqueEntries %>%
+    ggplot(aes(x=fct_reorder(country,count,.desc = T), y=count,fill=type))+
+    geom_col()+
+    facet_wrap(~type,scales = 'free_x')+
+    theme(axis.text.x = element_text(angle = 90))+
+    scale_x_discrete()+
+    labs(title='Top Countries for Movies Vs Tv',x='Country')+
+    theme(axis.text.x = element_text(angle = 90))
+```
+
+
+## Discussion:
+
+We can compare the use of rmd to review data with shinyR. The example provided uses the same code to construct and organize the data as the ShinyR counterpart. The major difference in that we can not interact with the figures like in shiny. This is a major draw back for base markdown because this means all reports are static.
+
+Now markdown does have it's advantages, primarily that it works in chunks. When you review the raw code you can follow along and run each section independently to check if they're working as intended. This makes markdown an effective method to start coding in R.

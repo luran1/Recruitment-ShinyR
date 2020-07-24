@@ -1,0 +1,110 @@
+---
+title: "Temp report"
+author: "Dominick Lemas"
+date: "February 22, 2020"
+output:
+  html_document:
+    highlight: tango
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+---
+
+```{r}
+# the first 10 lines of code are ised by R markdown to formate the report. the output potion of (lines 6-10) determine the formate of the report. 
+
+# below are the packages that we will be using within this lab. if you do not have these packages installed then you will need to do so. this can be done by entering the function install.packages("name_of_package") and then running it. this will download the package and then allow you to run the code below without errors.
+library(lubridate)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+```{r}
+
+# the following code will set the correct directory and pull the sample data that you are going to make a report around. 
+
+#read.scv() is a fucntion to read in excel documents into R. the parameter for the function is the filepath for the the data. you will need to put in the file path that is unique to your computer below. 
+
+exchange<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\datasets_535863_984605_Foreign_Exchange_Rates.csv")
+head(exchange)
+
+```
+
+```{r}
+
+placement<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\placement.csv")
+head(placement)
+```
+
+```{r}
+
+netflix<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\netflix_titles.csv")
+head(netflix)
+```
+
+```{r}
+#we'll first determine if there is a coorilation between gender and rank. the dataset has rankings from the 10th and 12th grade. 
+
+#below we pull the variables we want, gender and rank from both grades, using the select() function of dplyr.
+    #next we rename the ranks more appropriatly. 
+    #lastly we drop na values.
+genderVSrank <- placement%>%
+  select(gender,ssc_p,hsc_p)%>%
+  rename(rank10=ssc_p)%>%
+  rename(rank12=hsc_p)%>%
+  drop_na()
+
+
+#lets check if any values were dropped by comparing if they have the same number of rows. 
+
+nrow(placement)
+nrow(genderVSrank)
+
+#now lets compare rank and gender. we can first display the ranks of each gender individually. to properly represent the distribution well break the ranks into groups of 5(40-90th).
+bins=seq(from = 40, to = 90, by = 5)
+female_rank10 <- genderVSrank%>%
+  filter(gender=="F")%>%
+  group_by(rank10)%>%
+  summarise(count=n())
+
+male_rank10 <- genderVSrank%>%
+  filter(gender=="M")%>%
+  group_by(rank10)%>%
+  summarise(count=n())
+  
+
+
+ggplot(female_rank10, aes(x=rank10)) +
+    geom_histogram(aes(y=stat(count)))
+
+ggplot(male_rank10, aes(x=rank10)) +
+    geom_histogram(aes(y=stat(count)))
+
+```
+
+```{r}
+# now well begin to work with the data. first we should view the information on a larger scale than days. lets review the data by week,month, and year.
+
+#first well need to change the object type for the date column. currently the dates are flaged as factored objects where we need them to be date variables. we can change this using the as.Date() function.
+
+exchange$Time.Serie=as.Date(exchange$Time.Serie,format="%Y-%m-%d")
+
+# here we create new data frames where we add a new column for the weekly,monthly, and yearly date grouping
+weekly<-exchange%>%group_by(week=floor_date(Time.Serie,"7 days"))
+monthly<-exchange%>%group_by(month=floor_date(Time.Serie,"month"))
+yearly<-exchange%>%group_by(year=floor_date(Time.Serie,"year"))
+
+# now lets view what the exchange was for those groupings. well be making a line graph that represents the exchange rate to dollar by date.
+
+weekly %>% group_by(week)%>%
+  summarize(mean=mean(AUSTRALIA...AUSTRALIAN.DOLLAR.US.))
+
+
+ggplot(weekly, aes(x = weekly)) + 
+  geom_line(aes(y = AUSTRALIA...AUSTRALIAN.DOLLAR.US.), color="darkred")
+  
+  
+```
+
+
