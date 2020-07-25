@@ -1,0 +1,203 @@
+---
+title: "Data Inventory: Physical Activity"
+author: "Dominick Lemas"
+date: "February 22, 2020"
+output:
+  html_document:
+    highlight: tango
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE, warning = FALSE}
+
+library(knitr, warn.conflicts = F, quietly = T)
+library(tidyr, warn.conflicts = F, quietly = T)
+library(dplyr, warn.conflicts = F, quietly = T)
+library(ggplot2, warn.conflicts = F, quietly = T)
+library(keyringr, warn.conflicts = F, quietly = T)
+library(redcapAPI, warn.conflicts = F, quietly = T)
+library(REDCapR, warn.conflicts = F, quietly = T)
+library(lubridate, warn.conflicts = F, quietly = T)
+library(tidyverse, warn.conflicts = F, quietly = T)
+
+
+# keyringr: Avoiding plain text passwords
+uri <- "https://redcap.ctsi.ufl.edu/redcap/api/"
+# load token for Windows user:
+credential_label <- "beach_api"
+credential_path <- paste(Sys.getenv("USERPROFILE"), '\\DPAPI\\passwords\\', Sys.info()["nodename"], '\\', credential_label, '.txt', sep="")
+beach_token<-decrypt_dpapi_pw(credential_path)
+
+# load token for Mac user
+#credential_label <- "REDCap_BEACH_Study"
+#beach_token<-decrypt_kc_pw(credential_label)
+
+getwd()
+# source functions
+## Replace "~" with the location of this project repository on your own computer (e.g., on Xinsong's computer, the location is "/Users/xinsongdu/mnt/projects").
+source('/Users/Luran/Documents/GitHub/BEACH/utils/functions.R', encoding = 'UTF-8')
+
+```
+
+```{r pull data, include=FALSE, warning = FALSE}
+
+# Create connections
+rcon <- redcapConnection(url=uri, token=beach_token)
+
+# events
+events=c("baseline_arm_1","third_trimester_arm_1","two_week_arm_1","two_month_arm_1
+","six_month_arm_1","twelve_month_arm_1")
+
+# variables
+fields=c("test_id","redcap_event_name",
+                  "beach_part_drop_out",
+                  "beachphone_hear_about_us",
+                  "beach_part_consent",
+                  "beach_study_complete",
+                  "beachphone_date")
+
+records=c("BLS001A","BLS002A","BLS003A","BLS007A","BLS008A","BLS011A",
+          "BLS012A","BLS013A","BLS014A","BLS016A","BLS019A","BLS020A",
+          "BLS023A","BLS025A","BLS027A","BLS028A","BLS030A","BLS032A",
+          "BLS033A","BLS034A","BLS035A","BLS036A","BLS038A","BLS040A",
+          "BLS041A","BLS043A","BLS044A","BLS045A","BLS048A","BLS049A",
+          "BLS051A","BLS052A","BLS053A","BLS055A","BLS056A","BLS059A",
+          "BLS063A","BLS064A","BLS065A","BLS068A","BLS073A","BLS078A",
+          "BLS079A","BLS083A")
+
+# Issue with redcap_read(): 
+# Error in inherits(ds, "data.frame") : object 'ds' not found
+#-------------------------
+# pull data
+# dat<- redcap_read(
+#   batch_size=300,
+#   records= dropped.records.v1,
+#   redcap_uri = uri, 
+#   token      = beach_token, 
+#   fields     = desired_fields
+#   )$data
+
+dat=redcap_read_oneshot(
+                redcap_uri = uri, 
+                token      = beach_token,
+                fields     = fields,
+                events     = events,
+                records    = records)
+
+active=dat$data
+
+# factors
+active$study_visit=as.factor(active$redcap_event_name)
+
+
+```
+
+
+```{r format data, include=FALSE, warning = FALSE}
+# format data
+act=active%>%
+  group_by(test_id)%>%
+  mutate(drop_from_study=if(any(beach_part_drop_out == 0)) 0 else NA)%>%
+  mutate(consent=recode(beach_part_consent,"1"="Consented","0"="Not Consented","NA"="Not Conseted"))%>%
+  mutate(Encounter_Type=recode(beachphone_hear_about_us, "1"="Flyer", "2"="Radio", "3"="Social Media", "4"="Newspaper", "5"="word-of-mouth", "6"="other"))%>%
+  #must modify "beachphone_date" to a date data type
+  mutate(Encounter_Date=beachphone_date)%>%
+  mutate(study_visit = factor(study_visit, levels = 
+                                c("baseline_arm_1",
+                                  "third_trimester_arm_1",
+                                  "two_week_arm_1",
+                                  "two_month_arm_1",
+                                  "six_month_arm_1",
+                                  "twelve_month_arm_1")))%>%
+  select(-c(redcap_repeat_instrument,
+            redcap_event_name,
+            redcap_repeat_instance)) %>%
+  select(test_id,study_visit, everything())%>%
+  arrange(test_id, study_visit)
+
+```
+
+
+## Participants that have not consented and are active
+```{r consent,include=FALSE,warning=FALSE}
+#checking if any participants still need to consent to the study
+Not_Consented <- act%>%
+  select(test_id,consent,study_visit,drop_from_study)%>%
+  filter(study_visit== "baseline_arm_1")%>%
+  filter(drop_from_study=="0")%>%
+  filter(is.na(consent))%>%
+  select(test_id)
+
+#Presents the participants that have yet to complete consent records
+kable(Not_Consented)
+```
+
+## Encounter Types
+```{r Encounter type,include=FALSE,warning=FALSE}
+
+#Code Chunk does not work because of data pull issue.
+
+#summarizing the Encounter types for the study
+Encounter<-act%>%
+  select(test_id,study_visit,Encounter_Type)%>%
+  group_by(Encounter_Type)%>%
+  summarize(count=n())
+
+#present the data 
+kable(Encounter)
+```
+
+
+## Quarter breakdown of participant encounter
+```{r, echo=FALSE, warning=FALSE}
+#remove NA values from Encounter Type to view complete data.
+
+
+Encounter_per_time <- act%>%
+  select(Encounter_Date,Encounter_Type)%>%
+  filter(!is.na(Encounter_Type))
+
+#factor date to make it split into year month day
+Encounter_per_time$encounter_Date <- as.Date(Encounter_per_time$Encounter_Date, format= "%Y-%m-%d")
+
+#a new vector of dates to fill in gaps in data. dates go from the start to the end/current time of the study
+my_data <- data.frame(Encounter_Date = seq(as.Date("2017-01-01"), as.Date("2019-12-31"), 
+  by = "1 month"), format= "%Y-%m-%d")
+
+#join the date vectors together 
+my_complete <- full_join(my_data, Encounter_per_time, by = "Encounter_Date")
+
+#seperate the completed united vector into quarters
+Encounter_per_time <- my_complete%>%
+  separate(Encounter_Date,c("y","m","d"))%>%
+  mutate(Quarter = case_when(
+    m == "01" | m == "02" | m == "03" ~ "Q1",
+    m == "04" | m == "05" | m == "06" ~ "Q2",
+    m == "07" | m == "08" | m == "09" ~ "Q3",
+    m == "10" | m == "11" | m == "12" ~ "Q4",
+    TRUE~"Q5"))%>%
+  group_by(Encounter_Type,y,Quarter)%>%
+  summarize(count=n())%>%
+  unite("YQ",c("y",Quarter),sep ="-")
+
+#creating a figure to represent the data
+theme_set(theme_classic())
+# distribution of visits each month(histogram)
+h <- ggplot(Encounter_per_time, aes(YQ, count)) + scale_fill_brewer(palette = "Spectral")
+h + geom_histogram(aes(fill=factor(Encounter_Type)), stat = "Identity",
+                   bins=24,
+                   col="black", 
+                   size=.1) + # change number of bins
+  # geom_density() + #this function is meant to draw a trend line for the graph
+  # stat_bin(aes(y=count,label=count),geom="text",vjust=-.5) +   # this will display the total count of each bin
+  labs(title="How participants heard of our study monthly", 
+       subtitle="from july of 2017-January 2019",
+       x="Date(Year-Month)",
+       y="Count",
+       fill="How did you learn about the study") +
+  theme(axis.text.x = element_text(angle=70, vjust =.6))
+```
+
+
