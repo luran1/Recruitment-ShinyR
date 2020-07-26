@@ -9,11 +9,17 @@ output:
     toc: yes
     toc_float: yes
 ---
+# The code below is writen within code chunks which is telling R that the lines within are to be run. Any code outside of it are taken to be apart of the report.
+```{r}
+
+```
+
+
 
 ```{r}
-# the first 10 lines of code are ised by R markdown to formate the report. the output potion of (lines 6-10) determine the formate of the report. 
+# The first 10 lines of code are used by R markdown to formate the report. The output potion of (lines 6-10) determine the formate of the report. You will not need to modify this portion.
 
-# below are the packages that we will be using within this lab. if you do not have these packages installed then you will need to do so. this can be done by entering the function install.packages("name_of_package") and then running it. this will download the package and then allow you to run the code below without errors.
+# Below are the packages that we will be using within this lab. If you do not have these packages installed then you will need to do so. This can be done by entering the function. install.packages("name_of_package") and then running it. This will download the package and then allow you to run the code below without errors.
 library(lubridate)
 library(dplyr)
 library(tidyr)
@@ -22,22 +28,27 @@ library(ggplot2)
 
 ```{r}
 
-# the following code will set the correct directory and pull the sample data that you are going to make a report around. 
+# The following code will pull the sample data that you are going to make a report around. 
 
-#read.scv() is a fucntion to read in excel documents into R. the parameter for the function is the filepath for the the data. you will need to put in the file path that is unique to your computer below. 
+# read.scv() is a fucntion to read in excel documents into R. The parameter for the function is the filepath for the the data. You will need to put in the file path that is unique to your computer below.
 
 exchange<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\datasets_535863_984605_Foreign_Exchange_Rates.csv")
+
+# The code above pulls the exchange data set and the head() function below displays a small portion of the data. 
 head(exchange)
 
 ```
 
 ```{r}
+#This section pulls the Placement data set.
+
 
 placement<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\placement.csv")
 head(placement)
 ```
 
 ```{r}
+#this section of code pulls the netflix data set.
 
 netflix<- read.csv("C:\\Users\\Luran\\Documents\\GitHub\\Recruitment-ShinyR\\Kaggle\\netflix_titles.csv")
 head(netflix)
